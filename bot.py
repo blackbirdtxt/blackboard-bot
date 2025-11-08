@@ -21,9 +21,6 @@ ICS_URL = os.getenv(
 REMINDER_HOURS = int(os.getenv("REMINDER_HOURS", "24"))
 DB_PATH = os.getenv("DB_PATH", "./bb_alerts.db")
 
-# --------------------------
-# Inicializar Bot
-# --------------------------
 bot = Bot(token=TELEGRAM_TOKEN)
 
 # --------------------------
@@ -34,8 +31,10 @@ def init_db():
     c = conn.cursor()
     c.execute(
         """CREATE TABLE IF NOT EXISTS sent (
-            uid TEXT PRIMARY KEY,
-            sent_at TEXT
+            uid TEXT,
+            type TEXT,
+            sent_at TEXT,
+            PRIMARY KEY (uid, type)
         )"""
     )
     conn.commit()
@@ -106,25 +105,43 @@ async def main():
         if ev_time.tzinfo is None:
             ev_time = ev_time.replace(tzinfo=timezone.utc)
 
-        if should_send(ev_time, now, REMINDER_HOURS):
-            uid = ev["uid"]
-            c.execute("SELECT 1 FROM sent WHERE uid = ?", (uid,))
-            if c.fetchone():
-                continue  # Ya enviado
+        uid = ev["uid"]
 
-            text = (
-                f"📚 *Recordatorio Blackboard*\n\n"
-                f"📝 {ev['summary']}\n"
-                f"📅 {ev_time.strftime('%Y-%m-%d %H:%M %Z')}\n\n"
-                f"{ev['description']}"
-            )
-            await send_telegram_message(text)
-            c.execute(
-                "INSERT INTO sent (uid, sent_at) VALUES (?, ?)",
-                (uid, datetime.now(timezone.utc).isoformat()),
-            )
-            conn.commit()
-            print("✅ Enviado:", ev["summary"])
+        # 1️⃣ Recordatorio anticipado (ej. 24h antes)
+        if should_send(ev_time, now, REMINDER_HOURS):
+            c.execute("SELECT 1 FROM sent WHERE uid = ? AND type = 'pre'", (uid,))
+            if not c.fetchone():
+                text = (
+                    f"⏰ *Recordatorio anticipado*\n\n"
+                    f"📝 {ev['summary']}\n"
+                    f"📅 {ev_time.strftime('%Y-%m-%d %H:%M %Z')}\n\n"
+                    f"{ev['description']}"
+                )
+                await send_telegram_message(text)
+                c.execute(
+                    "INSERT INTO sent (uid, type, sent_at) VALUES (?, 'pre', ?)",
+                    (uid, datetime.now(timezone.utc).isoformat()),
+                )
+                conn.commit()
+                print("✅ Enviado recordatorio anticipado:", ev["summary"])
+
+        # 2️⃣ Recordatorio final (el mismo día)
+        if ev_time.date() == now.date():
+            c.execute("SELECT 1 FROM sent WHERE uid = ? AND type = 'day'", (uid,))
+            if not c.fetchone():
+                text = (
+                    f"📚 *Hoy tienes actividad en Blackboard*\n\n"
+                    f"📝 {ev['summary']}\n"
+                    f"🕒 {ev_time.strftime('%Y-%m-%d %H:%M %Z')}\n\n"
+                    f"{ev['description']}"
+                )
+                await send_telegram_message(text)
+                c.execute(
+                    "INSERT INTO sent (uid, type, sent_at) VALUES (?, 'day', ?)",
+                    (uid, datetime.now(timezone.utc).isoformat()),
+                )
+                conn.commit()
+                print("✅ Enviado recordatorio del día:", ev["summary"])
 
     conn.close()
     print("✅ Proceso finalizado correctamente.")
