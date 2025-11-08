@@ -1,4 +1,4 @@
 python-telegram-bot==21.6
-requests
-icalendar
-python-dotenv
+requests==2.32.3
+icalendar==5.0.12
+python-dotenv==1.0.1
