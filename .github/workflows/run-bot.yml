@@ -2,31 +2,31 @@ name: Blackboard Reminder Bot
 
 on:
   schedule:
-    # Ejecuta el bot cada 4 horas
-    - cron: "0 */4 * * *"
-  workflow_dispatch: # Permite ejecutarlo manualmente desde GitHub
+    - cron: "0 */4 * * *"  # Se ejecuta cada 4 horas
+  workflow_dispatch:       # Permite ejecutarlo manualmente
 
 jobs:
   run-bot:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run Blackboard bot
+      - name: Run Blackboard Reminder Bot
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           ICS_URL: ${{ secrets.ICS_URL }}
+          REMINDER_HOURS: ${{ secrets.REMINDER_HOURS }}
         run: python bot.py
