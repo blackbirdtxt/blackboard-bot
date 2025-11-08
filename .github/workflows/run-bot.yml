@@ -23,4 +23,4 @@ jobs:
       - name: Run Blackboard Bot
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-        run: python main.py
+        run: python bot.py
